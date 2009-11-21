@@ -1,0 +1,2 @@
+#!/bin/bash
+java -cp bin/DroidEx.jar:$ANDROID_HOME/tools/lib/ddmlib.jar com.commonsware.droidex.DroidEx $1
