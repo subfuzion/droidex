@@ -39,14 +39,14 @@ The Android 2.0 SDK, or at least ddmlib.jar.
 Compatibility
 -------------
 DroidEx is known to work with:
- *	T-Mobile G1
- *	Google Ion
- *	HTC Tattoo
- *	Motorola DROID
+ 1.	T-Mobile G1
+ 2.	Google Ion
+ 3.	HTC Tattoo
+ 4.	Motorola DROID
 
 DroidEx is known not to work with:
- *	HTC Hero (at least early versions distributed by Sprint in the US)
- *	ARCHOS 5 Android tablet
+ 1.	HTC Hero (at least early versions distributed by Sprint in the US)
+ 2.	ARCHOS 5 Android tablet
 
 Version
 -------
