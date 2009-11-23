@@ -36,6 +36,18 @@ Dependencies
 ------------
 The Android 2.0 SDK, or at least ddmlib.jar.
 
+Compatibility
+-------------
+DroidEx is known to work with:
+* T-Mobile G1
+* Google Ion
+* HTC Tattoo
+* Motorola DROID
+
+DroidEx is known not to work with:
+* HTC Hero (at least early versions distributed by Sprint in the US)
+* ARCHOS 5 Android tablet
+
 Version
 -------
 This is version 1.0, meaning DroidEx has been used a fair bit.
