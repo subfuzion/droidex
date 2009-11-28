@@ -58,6 +58,12 @@ The code in this project is licensed under the Apache
 Software License 2.0, per the terms of the included LICENSE
 file.
 
+Open Source Development
+-----------------------
+Those interested in contributing to DroidEx may be interested
+in the project's [Lighthouse issue tracker][lh] and the project's
+[development Google Group][dgg].
+
 Questions
 ---------
 If you have questions regarding the use of this code, please
@@ -65,3 +71,5 @@ join and ask them on the [cw-android Google Group][gg]. Be sure to
 indicate which application you have questions about.
 
 [gg]: http://groups.google.com/group/cw-android
+[dgg]: http://groups.google.com/group/droidex
+[lh]: https://commonsware.lighthouseapp.com/projects/41963-droidex
