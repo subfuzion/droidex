@@ -17,124 +17,141 @@
 
 package com.commonsware.droidex;
 
-import java.awt.*;
-import java.awt.image.AffineTransformOp;
-import java.awt.image.BufferedImage;
-import java.awt.image.BufferedImageOp;
-import java.awt.geom.AffineTransform;
-import java.io.*;
-import javax.imageio.ImageIO;
-import javax.swing.*;
 import com.android.ddmlib.AndroidDebugBridge;
 import com.android.ddmlib.IDevice;
-import com.android.ddmlib.RawImage;
+import com.commonsware.droidex.image.*;
+import com.commonsware.droidex.ui.DeviceScreenView;
+import com.commonsware.droidex.ui.DroidExMenuBar;
+import com.commonsware.droidex.ui.DroidExToolBar;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
 
-public class DroidEx extends JPanel {
-	private BufferedImage image=null;
-	private Dimension size=new Dimension();
-	private IDevice device=null;
-	private JFrame f=null;
-	private boolean firstRun=true;
-	private double scale=1.5;
-	private BufferedImageOp op=null;
-	
-	public DroidEx(double scale) throws IOException {
-		this.scale=scale;
-		
-		AffineTransform tx=AffineTransform.getScaleInstance(scale, scale);
-		
-		op=new AffineTransformOp(tx,
-				new RenderingHints(RenderingHints.KEY_INTERPOLATION,
-													 RenderingHints.VALUE_INTERPOLATION_BICUBIC));
-		
-		AndroidDebugBridge bridge=AndroidDebugBridge.createBridge();
-		
+import javax.swing.*;
+import java.awt.*;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.io.IOException;
+
+/**
+ * Displays a copy of the device's screen.
+ */
+public class DroidEx extends JFrame {
+	private IDevice device = null;
+	private StartupOptions options;
+	private RenderSettings settings;
+	private DeviceScreenView deviceScreenView;
+
+	public DroidEx(StartupOptions options) throws IOException {
+		this.options = options;
+
+		AndroidDebugBridge bridge = AndroidDebugBridge.createBridge();
+		sleep(1000); // allow sync
+
 		try {
-			try { Thread.sleep(1000); } catch(Throwable t) {}		// allow sync
-			
-			IDevice[] devices=bridge.getDevices();
-			
-			device=devices[0];
-			
-			new Thread(new Runnable() {
-				public void run() {
-					pollForever();
-				}
-			}).start();
-			
+			initDevice(bridge);
+			initRenderSettings();
+			initDeviceScreenView();
+			initFrame(deviceScreenView);
 		}
 		finally {
 			AndroidDebugBridge.disconnectBridge();
 		}
 	}
-	
-	void pollForever() {
-		while(true) {
+
+	private void initDevice(AndroidDebugBridge bridge) {
+		IDevice[] devices = bridge.getDevices();
+		device = devices[0];
+	}
+
+	private void initRenderSettings() {
+		settings = new RenderSettings();
+		settings.setScale(options.scale);
+		settings.setOrientation(options.orientation);
+	}
+
+	private void initDeviceScreenView() {
+		IImageProvider imageProvider = new DeviceScreenImageProvider(device);
+		imageProvider.addImageFilter(new ScaleImageFilter(settings));
+		imageProvider.addImageFilter(new RotateImageFilter(settings));
+		imageProvider.addImageFilter(new RecordImageFilter(settings));
+
+		deviceScreenView = new DeviceScreenView(imageProvider);
+		deviceScreenView.setFrameRate(options.frameRate);
+		deviceScreenView.play();
+
+		settings.addPropertyChangeListener(new PropertyChangeListener() {
+			public void propertyChange(PropertyChangeEvent event) {
+				deviceScreenView.repaint();
+			}
+		});
+	}
+
+	private void initFrame(JPanel panel) {
+		initLookAndFeel();
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		this.setJMenuBar(new DroidExMenuBar());
+		initChildComponents(panel);
+		this.pack();
+		centerFrame(this);
+	}
+
+	private void initLookAndFeel()
+	{
+		try {
 			try {
-				fetchImage();
-				repaint();
-			}
-			catch (IOException e) {
-				System.err.println("Exception fetching image: "+e.toString());
-			}
-			
-			try { Thread.sleep(150); } catch(Throwable t) {}		// allow sync
-		}
-	}
-	
-	private void fetchImage() throws IOException {
-		RawImage rawImage=device.getScreenshot();
-		
-		if (rawImage!=null) {
-			image=new BufferedImage(rawImage.width, rawImage.height,
-															BufferedImage.TYPE_INT_ARGB);
-			
-			int index = 0;
-      int IndexInc = rawImage.bpp >> 3;
-
-      for (int y = 0 ; y < rawImage.height ; y++) {
-	      for (int x = 0 ; x < rawImage.width ; x++) {
-					int value=rawImage.getARGB(index);
-
-					index += IndexInc;
-					image.setRGB(x, y, value);
+				JFrame.setDefaultLookAndFeelDecorated(true);
+				for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+					if ("Nimbus".equals(info.getName())) {
+						UIManager.setLookAndFeel(info.getClassName());
+						break;
+					}
 				}
+			} catch (Exception e) {
+				UIManager.setLookAndFeel(
+						UIManager.getSystemLookAndFeelClassName());
 			}
-			            
-			image=op.filter(image, null);
-			size.setSize(image.getWidth(), image.getHeight());
-			
-			if (firstRun) {
-				JScrollPane pane=new JScrollPane(this);
-				
-				f=new JFrame();
-				f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-				pane.setSize(size);
-				f.add(pane);
-				f.setLocation(50, 50);
-				f.setVisible(true);
-				f.setSize(image.getWidth()+16, image.getHeight()+32);
-				firstRun=false;
-			}
-		}
-		else {
-			System.err.println("Received invalid image");
+		} catch (Exception e) {
+			JFrame.setDefaultLookAndFeelDecorated(false);
 		}
 	}
-	
-	protected void paintComponent(Graphics g) {
-		int x = (getWidth()-size.width)/2;
-		int y = (getHeight()-size.height)/2;
-		g.drawImage(image, x, y, this);
+
+	private void initChildComponents(JPanel panel) {
+		setLayout(new BorderLayout());
+		add(new DroidExToolBar(), BorderLayout.NORTH);
+		JScrollPane scrollPane = new JScrollPane(panel);
+		scrollPane.setSize(panel.getPreferredSize());
+		this.add(new JScrollPane(panel));
 	}
-	
-	public Dimension getPreferredSize() {
-		return(size);
+
+	private static void centerFrame(Component component) {
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		component.setLocation(
+				(screenSize.width - component.getWidth()) / 2,
+				(screenSize.height - component.getHeight()) / 2);
 	}
-	
+
+	private static void sleep(long millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (Throwable t) {
+		}
+	}
+
 	public static void main(String[] args) throws IOException {
-		double scale=(args.length>0 ? Double.valueOf(args[0]).doubleValue() : 1.0d);
-		
-		DroidEx droidex=new DroidEx(scale);
+		StartupOptions options = new StartupOptions();
+		CmdLineParser parser = new CmdLineParser(options);
+
+		try {
+			// options contain the parsed args
+			parser.parseArgument(args);
+			DroidEx droidex = new DroidEx(options);
+			droidex.setVisible(true);
+
+		} catch (CmdLineException e) {
+			System.err.println(e.getMessage());
+			System.err.println("droidex [options...]");
+			parser.printUsage(System.err);
+			return;
+		}
 	}
 }
